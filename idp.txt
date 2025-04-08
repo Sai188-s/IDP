@@ -1,0 +1,92 @@
+clc;
+clear;
+close all;
+
+% Step 1: Load the image in grayscale mode
+disp('Starting');
+img = imread('sai.png');
+if size(img, 3) == 3
+    img = rgb2gray(img); % Convert to grayscale if the image is RGB
+end
+
+% Step 2: Thresholding to create a binary image
+threshold = graythresh(img); % Calculate threshold using Otsu's method
+thresh = ~im2bw(img, threshold); % Invert binary image
+
+% Step 3: Morphological operations (Erosion and Dilation)
+kernel = strel('square', 3);
+erosion = imerode(thresh, kernel);
+dilation = imdilate(erosion, kernel);
+
+% Step 4: Edge detection using Canny
+edges = edge(dilation, 'Canny');
+
+% Step 5: Contour detection
+contours = bwconncomp(erosion);
+numGrains = contours.NumObjects;
+disp(['No. of rice grains = ', num2str(numGrains)]);
+
+% Step 6: Calculate aspect ratios and classify grains
+total_ar = 0;
+for i = 1:numGrains
+    [rows, cols] = ind2sub(size(erosion), contours.PixelIdxList{i});
+    minRow = min(rows);
+    maxRow = max(rows);
+    minCol = min(cols);
+    maxCol = max(cols);
+    
+    width = maxCol - minCol + 1;
+    height = maxRow - minRow + 1;
+    aspect_ratio = max(width / height, height / width);
+    
+    % Classify the grain
+    if aspect_ratio >= 3
+        classification = '(Slender)';
+    elseif aspect_ratio >= 2.1
+        classification = '(Medium)';
+    elseif aspect_ratio >= 1.1
+        classification = '(Bold)';
+    else
+        classification = '(Round)';
+    end
+    
+    % Display aspect ratio and classification
+    disp([sprintf('%.2f', aspect_ratio), ' ', classification]);
+    total_ar = total_ar + aspect_ratio;
+end
+
+% Calculate average aspect ratio
+avg_ar = total_ar / numGrains;
+if avg_ar >= 3
+    avg_classification = '(Slender)';
+elseif avg_ar >= 2.1
+    avg_classification = '(Medium)';
+elseif avg_ar >= 1.1
+    avg_classification = '(Bold)';
+else
+    avg_classification = '(Round)';
+end
+
+disp(['Average Aspect Ratio = ', sprintf('%.2f', avg_ar), ' ', avg_classification]);
+
+% Step 7: Plot the images
+figure;
+subplot(2, 3, 1);
+imshow(img);
+title('Original');
+
+subplot(2, 3, 2);
+imshow(thresh);
+title('Threshold');
+
+subplot(2, 3, 3);
+imshow(erosion);
+title('Erosion');
+
+subplot(2, 3, 4);
+imshow(dilation);
+title('Dilation');
+
+subplot(2, 3, 5);
+imshow(edges);
+title('Edge Detect');
